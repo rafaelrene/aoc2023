@@ -57,8 +57,6 @@
         (define max-g 0)
         (define max-b 0)
 
-        (println played-game)
-        (println "--------------------------------------------------")
         (match played-game
           [(list (game id (list (game-round-color "red" r) (game-round-color "green" g) (game-round-color "blue" b))) ...)
             (set! id-current-game id)
