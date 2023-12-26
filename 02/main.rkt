@@ -78,7 +78,35 @@
 
       (println (string-append "Part 1: " (number->string res)))
     ]
-    [(eq? n 2) (println "Part 2: Not implemented yet!")]))
+    [(eq? n 2)
+     (define res 0)
+
+     (define parsed-lines null)
+
+     (for/list ([l read-input-lines])
+       (cond
+         [(string-length l) (set! parsed-lines (append parsed-lines (list (parse-line l))))]
+         [else (error "Nope...")]))
+
+     (for/list ([played-game parsed-lines])
+       (define max-r 0)
+       (define max-g 0)
+       (define max-b 0)
+
+       (match played-game
+         [(list (game id (list (game-round-color "red" r) (game-round-color "green" g) (game-round-color "blue" b))) ...)
+          (cond [max-r <= r (set! max-r r)])
+          (cond [max-g <= g (set! max-g g)])
+          (cond [max-b <= b (set! max-b b)])]
+         [else (println "Not matched")])
+
+       (set! max-r (foldl (lambda (x y) (if (> x y) x y)) 0 max-r))
+       (set! max-g (foldl (lambda (x y) (if (> x y) x y)) 0 max-g))
+       (set! max-b (foldl (lambda (x y) (if (> x y) x y)) 0 max-b))
+
+       (set! res (+ res (* max-r max-g max-b))))
+
+     (println (string-append "Part 2: " (number->string res)))]))
 
 
 (part 1)
