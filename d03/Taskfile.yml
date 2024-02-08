@@ -1,0 +1,10 @@
+version: "3"
+
+tasks:
+  watch:
+    cmds:
+      - dune exec --watch --verbose --debug-backtraces d03
+
+  exec:
+    cmds:
+      - dune exec d03
