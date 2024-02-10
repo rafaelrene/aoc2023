@@ -1,10 +1,11 @@
-type dir = LEFT | RIGHT;;
+type line_num = {num : int; index : int; end_index : int}
 
-let symbols = ['*' ; '#' ; '+' ; '$'];;
+let symbols = ['-' ; '+' ; '/' ; '*' ; '=' ; '$' ; '#' ; '&' ; '@' ; '%' ; '!' ; '^'];;
 
-let _string_of_dir d = match d with
-  | LEFT -> "LEFT"
-  | RIGHT -> "RIGHT"
+
+let rec (--) i j =
+  if i > j then []
+  else i :: (i + 1)--j;;
 
 let read_file =
   let lines = ref [] in
@@ -26,91 +27,91 @@ let contains_one_of_symbols line =
   String.fold_left (fun acc c -> if acc == false then is_symbol c else acc) false line;;
 
 let find_symbols_in_line line =
-  let match_symbols acc c = 
-    match c with
-      | x when List.mem x symbols -> (x, String.index line x) :: acc
-      | _ -> acc in
+  let found_symbols = ref [] in
+
+  let match_symbols i ch = 
+    match List.mem ch symbols with
+    | true -> found_symbols := (ch, i) :: !found_symbols; ()
+    | false -> ();
+  in
  
-  let found_symbols = String.fold_left match_symbols [] line in
+  String.iteri match_symbols line;
 
-  found_symbols;;
-
-(* let calculate_char (prev_line : string option) (current_line : string) (next_line : string option) (char : char) (index : int) = *)
-(**)
-(*   0;; *)
+  !found_symbols;;
 
 let _is_digit digit =
   match digit with
     | '0' .. '9' -> true
     | _ -> false;;
 
-let _handle_char found_symbols (_prev_line : string option) (_current_line : string) (_next_line : string option) (_char_index : int) (_acc : int) (_c : char) =
-  let find_in_line (_c, _i) = print_endline (String.make 1 _c) in
+let parse_line_numbers line =
+  let _res = ref [] in
+  let _r = ref "" in
 
-  print_newline ();
+  let parse i ch =
+    let current_result_length = String.length !_r in
 
-  List.length found_symbols |> string_of_int |> print_endline;
-  List.iter find_in_line found_symbols;
+    if current_result_length > 0 && ch == '.' then
+      let num = {num = int_of_string !_r; index = (i - current_result_length); end_index = i - 1} in
 
-  0;;
+      _res := num :: !_res;
+      _r := "";
+    else
+      match ch with
+      | '0' .. '9' -> _r := !_r ^ (String.make 1 ch)
+      | _ -> ();
+
+        ()
+  in
+
+  let _parsed_result = String.iteri parse line in
+
+  !_res;;
 
 let calculate_line_res (lines : string list) (current_line_index : int) (current_line : string) (_res : int) =
-  let rec get_adjacent_number_by_dir _line index (direction : dir) (res : string) = 
-    print_endline ("RES: " ^ res);
-
-    let end_predicate i = match direction with
-      | LEFT -> i == 0
-      | RIGHT -> i == (String.length _line - 1) in
-
-    let get_current_loop_index i = match direction with
-      | LEFT -> i - 1
-      | RIGHT -> i + 1 in
-
-    let append_by_dir char_to_append = match direction with
-      | LEFT -> String.make 1 char_to_append ^ res
-      | RIGHT -> res ^ String.make 1 char_to_append in
-
-    if end_predicate index then 
-      if String.length res == 0 then 0 else int_of_string res
-    else
-
-    let current_loop_index = get_current_loop_index index in
-    let current_loop_char = String.get _line current_loop_index in
-
-    let append_as_needed char_to_append = match _is_digit current_loop_char with
-        | true -> append_by_dir char_to_append
-        | false -> res in
-
-      print_endline ("current loop char: " ^ String.make 1 current_loop_char);
-
-      get_adjacent_number_by_dir _line current_loop_index direction (append_as_needed current_loop_char)
-    in
-
   let maybe_prev_line = List.nth_opt lines (current_line_index - 1) in
   let maybe_next_line = List.nth_opt lines (current_line_index + 1) in
 
-  let calculate_line_results (_char, _char_index) = 
-    let current_left = get_adjacent_number_by_dir current_line _char_index LEFT "" in
-    let current_right = get_adjacent_number_by_dir current_line _char_index RIGHT "" in
+  let calc line ch_i =
+    let line_nums = parse_line_numbers line in
 
-    let handle_maybe_line l d = match l with
-      | Some x -> get_adjacent_number_by_dir x _char_index d ""
+    let is_in_range ch_i ln = 
+      let allowed = [ch_i - 1; ch_i; ch_i + 1] in
+      let indexes = ln.index--ln.end_index in
+
+      List.exists (fun i -> List.mem i allowed) indexes
+    in
+
+    line_nums
+    |> List.filter (fun ln -> is_in_range ch_i ln) 
+    |> List.map (fun ln -> ln.num)
+    |> List.fold_left (fun x n -> x + n) 0
+  in
+
+  let calculate_line_results (_, ch_i) = 
+    let handle_maybe_line l = match l with
+      | Some x -> calc x ch_i
       | None -> 0 in
 
-    let previous_left = handle_maybe_line maybe_prev_line LEFT in
-    let previous_right = handle_maybe_line maybe_prev_line RIGHT in
+    let current = calc current_line ch_i in
+    let previous = handle_maybe_line maybe_prev_line in
+    let next = handle_maybe_line maybe_next_line in
 
-    let next_left = handle_maybe_line maybe_next_line LEFT in
-    let next_right = handle_maybe_line maybe_next_line RIGHT in
+    print_endline ("--------------------------------");
+    print_endline ("CHAR_INDEX: " ^ string_of_int ch_i);
+    print_endline ("P: " ^ string_of_int previous);
+    print_endline ("C: " ^ string_of_int current);
+    print_endline ("N: " ^ string_of_int next);
+    print_endline ("FULL: " ^ string_of_int (previous + current + next));
+    print_endline ("--------------------------------");
 
-    let res = current_left + current_right + previous_left + previous_right + next_left + next_right in
-    res in 
+    current + previous + next in 
   
   let found_symbols = current_line |> find_symbols_in_line |> List.rev in
 
-  let _r = List.map calculate_line_results found_symbols in
+  let line_results = List.map calculate_line_results found_symbols in
 
-  let calculated_result = List.fold_left (+) 0 _r in
+  let calculated_result = List.fold_left (+) 0 line_results in
 
   calculated_result;;
 
@@ -124,8 +125,6 @@ let rec handle_line lines current_index current_line (res : int) =
 
       res;
   | Some l ->
-      (* print_endline l; *)
-      
       let line_has_symbols = l |> contains_one_of_symbols in
       let next_index = current_index + 1 in
 
