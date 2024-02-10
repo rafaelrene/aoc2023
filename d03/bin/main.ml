@@ -37,7 +37,9 @@ let map_line symbols numbers current_line_index _ =
 
   let count_part_numbers (symbols : line_symbol list option) (line_num : line_num) =
     match symbols with
-    | None -> 0
+    | None -> 
+      print_endline ("No symbols on line");
+      0
     | Some line_symbols ->
       let allowed_indexes = line_num.index--line_num.end_index in
 
@@ -49,14 +51,24 @@ let map_line symbols numbers current_line_index _ =
 
       let found_part_num = line_symbols |> List.filter is_in_symbol_range |> List.length in
 
+      allowed_indexes |> List.iter (fun x -> print_endline ("ALLOWED INDEXES: " ^ string_of_int x));
+      line_symbols |> List.iter (fun x -> print_endline ("LINE INDEXES: " ^ string_of_int x.index));
+
+      print_endline ("FOUND: " ^ string_of_int found_part_num);
+
       if found_part_num == 0 then 0 else line_num.num
   in
 
 
   let safe_count_numbers (line_num : line_num) =
+    print_endline ("----------------------------------------");
+    print_endline ("LINE NUM: " ^ string_of_int line_num.num);
+
     let prev_count = count_part_numbers previous_line_symbols line_num in
     let current_count = count_part_numbers current_line_symbols line_num in
     let next_count = count_part_numbers next_line_symbols line_num in
+
+    print_endline ("----------------------------------------");
 
     prev_count + current_count + next_count
   in
@@ -107,10 +119,12 @@ let p1 =
   let symbols = List.map get_line_symbols lines in
   let numbers = List.map get_line_numbers lines in
 
+  print_newline();
+  print_newline();
+
   let results = List.mapi (map_line symbols numbers) lines in
   let result = List.fold_left (fun x n -> x + n) 0 results in
 
-  print_newline();
   print_newline();
   print_endline ("RESULT: " ^ string_of_int result);
 
