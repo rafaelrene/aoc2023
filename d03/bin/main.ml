@@ -1,7 +1,7 @@
 type line_num = {num : int; index : int; end_index : int}
+type line_symbol = {symbol : char; index : int}
 
 let symbols = ['-' ; '+' ; '/' ; '*' ; '=' ; '$' ; '#' ; '&' ; '@' ; '%' ; '!' ; '^'];;
-
 
 let rec (--) i j =
   if i > j then []
@@ -23,42 +23,76 @@ let read_file =
 
 let is_symbol c = List.mem c symbols
 
-let contains_one_of_symbols line =
-  String.fold_left (fun acc c -> if acc == false then is_symbol c else acc) false line;;
-
-let find_symbols_in_line line =
-  let found_symbols = ref [] in
-
-  let match_symbols i ch = 
-    match List.mem ch symbols with
-    | true -> found_symbols := (ch, i) :: !found_symbols; ()
-    | false -> ();
-  in
- 
-  String.iteri match_symbols line;
-
-  !found_symbols;;
-
-let _is_digit digit =
+let is_digit digit =
   match digit with
     | '0' .. '9' -> true
     | _ -> false;;
 
-let parse_line_numbers line =
-  let _res = ref [] in
-  let _r = ref "" in
+let map_line symbols numbers current_line_index _ =
+  let current_line_numbers = List.nth numbers current_line_index in
+
+  let previous_line_symbols = if current_line_index == 0 then None else List.nth_opt symbols (current_line_index - 1) in
+  let current_line_symbols = List.nth_opt symbols current_line_index in
+  let next_line_symbols = List.nth_opt symbols (current_line_index + 1) in
+
+  let count_part_numbers (symbols : line_symbol list option) (line_num : line_num) =
+    match symbols with
+    | None -> 0
+    | Some line_symbols ->
+      let allowed_indexes = line_num.index--line_num.end_index in
+
+      let is_in_symbol_range line_symbol =
+        let symbol_indexes = [line_symbol.index - 1; line_symbol.index; line_symbol.index + 1] in
+
+        List.exists (fun ai -> List.mem ai symbol_indexes) allowed_indexes
+      in
+
+      let found_part_num = line_symbols |> List.filter is_in_symbol_range |> List.length in
+
+      if found_part_num == 0 then 0 else line_num.num
+  in
+
+
+  let safe_count_numbers (line_num : line_num) =
+    let prev_count = count_part_numbers previous_line_symbols line_num in
+    let current_count = count_part_numbers current_line_symbols line_num in
+    let next_count = count_part_numbers next_line_symbols line_num in
+
+    prev_count + current_count + next_count
+  in
+
+  current_line_numbers
+  |> List.map safe_count_numbers 
+  |> List.fold_left (fun acc n -> acc + n) 0;;
+
+let get_line_symbols line =
+  let line_symbols = ref [] in
+
+  let to_symbol index char = 
+    let symbol = {symbol = char; index = index} in
+    line_symbols := symbol :: !line_symbols;
+  in
+
+  line |> String.iteri to_symbol;
+
+  !line_symbols |> List.filter (fun symbol -> is_symbol symbol.symbol);;
+
+let get_line_numbers line =
+  let line_nums = ref [] in
+  let current_number = ref "" in
 
   let parse i ch =
-    let current_result_length = String.length !_r in
+    let current_result_length = String.length !current_number in
+    let is_ch_digit = is_digit ch in
 
-    if current_result_length > 0 && ch == '.' then
-      let num = {num = int_of_string !_r; index = (i - current_result_length); end_index = i - 1} in
+    if current_result_length > 0 && (is_ch_digit == false) then
+      let num = {num = int_of_string !current_number; index = (i - current_result_length); end_index = i - 1} in
 
-      _res := num :: !_res;
-      _r := "";
+      line_nums := num :: !line_nums;
+      current_number := "";
     else
-      match ch with
-      | '0' .. '9' -> _r := !_r ^ (String.make 1 ch)
+      match is_ch_digit with
+      | true -> current_number := !current_number ^ (String.make 1 ch)
       | _ -> ();
 
         ()
@@ -66,77 +100,20 @@ let parse_line_numbers line =
 
   let _parsed_result = String.iteri parse line in
 
-  !_res;;
+  !line_nums;;
 
-let calculate_line_res (lines : string list) (current_line_index : int) (current_line : string) (_res : int) =
-  let maybe_prev_line = List.nth_opt lines (current_line_index - 1) in
-  let maybe_next_line = List.nth_opt lines (current_line_index + 1) in
+let p1 =
+  let lines = read_file in
+  let symbols = List.map get_line_symbols lines in
+  let numbers = List.map get_line_numbers lines in
 
-  let calc line ch_i =
-    let line_nums = parse_line_numbers line in
+  let results = List.mapi (map_line symbols numbers) lines in
+  let result = List.fold_left (fun x n -> x + n) 0 results in
 
-    let is_in_range ch_i ln = 
-      let allowed = [ch_i - 1; ch_i; ch_i + 1] in
-      let indexes = ln.index--ln.end_index in
+  print_newline();
+  print_newline();
+  print_endline ("RESULT: " ^ string_of_int result);
 
-      List.exists (fun i -> List.mem i allowed) indexes
-    in
+  result;;
 
-    line_nums
-    |> List.filter (fun ln -> is_in_range ch_i ln) 
-    |> List.map (fun ln -> ln.num)
-    |> List.fold_left (fun x n -> x + n) 0
-  in
-
-  let calculate_line_results (_, ch_i) = 
-    let handle_maybe_line l = match l with
-      | Some x -> calc x ch_i
-      | None -> 0 in
-
-    let current = calc current_line ch_i in
-    let previous = handle_maybe_line maybe_prev_line in
-    let next = handle_maybe_line maybe_next_line in
-
-    print_endline ("--------------------------------");
-    print_endline ("CHAR_INDEX: " ^ string_of_int ch_i);
-    print_endline ("P: " ^ string_of_int previous);
-    print_endline ("C: " ^ string_of_int current);
-    print_endline ("N: " ^ string_of_int next);
-    print_endline ("FULL: " ^ string_of_int (previous + current + next));
-    print_endline ("--------------------------------");
-
-    current + previous + next in 
-  
-  let found_symbols = current_line |> find_symbols_in_line |> List.rev in
-
-  let line_results = List.map calculate_line_results found_symbols in
-
-  let calculated_result = List.fold_left (+) 0 line_results in
-
-  calculated_result;;
-
-
-let rec handle_line lines current_index current_line (res : int) = 
-  print_newline ();
-
-  match current_line with
-  | None ->
-      "Reached last line! Result: " ^ (string_of_int res) |> print_endline;
-
-      res;
-  | Some l ->
-      let line_has_symbols = l |> contains_one_of_symbols in
-      let next_index = current_index + 1 in
-
-      match line_has_symbols with
-        | true ->
-            let _l_res = calculate_line_res lines current_index l 0 in
-
-            handle_line lines next_index (List.nth_opt lines next_index) (res + _l_res);
-        | false ->
-            handle_line lines next_index (List.nth_opt lines next_index) res;;
-
-let lines = read_file;;
-let li = ref 0;;
-
-handle_line lines !li (List.nth_opt lines !li) 0;;
+p1;;
