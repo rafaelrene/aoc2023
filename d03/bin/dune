@@ -1,4 +1,6 @@
 (executable
  (public_name d03)
  (name main)
- (libraries d03))
+ (preprocess
+  (pps ppx_deriving.show ppx_deriving.eq))
+ (libraries d03 core fmt))

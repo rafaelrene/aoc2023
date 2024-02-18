@@ -1,133 +1,108 @@
-type line_num = {num : int; index : int; end_index : int}
-type line_symbol = {symbol : char; index : int}
+open Core;;
 
-let symbols = ['-' ; '+' ; '/' ; '*' ; '=' ; '$' ; '#' ; '&' ; '@' ; '%' ; '!' ; '^'];;
+type symbol = {col_index: int; row_index: int; };;
+type part_number = {col_index_start: int; col_index_end: int; row_index: int; value: int};;
 
-let rec (--) i j =
-  if i > j then []
-  else i :: (i + 1)--j;;
+let get_file_lines file = In_channel.read_lines file;;
 
-let read_file =
-  let lines = ref [] in
-  let ch = open_in "input" in
+let is_symbol ch = match ch with
+  | '0' .. '9' -> false
+  | '.' -> false
+  | _ -> true;;
 
-  try
-    while true; do
-      lines := input_line ch :: !lines;
-    done;
+let get_symbols file_lines = 
+  let result = ref [] in
 
-    !lines;
-  with End_of_file ->
-    close_in ch;
-    List.rev !lines ;;
+  List.iteri file_lines ~f:(fun row_index row ->
+    let handle_ch col_index ch = 
+      let _ = match is_symbol ch with
+        | true -> result := {col_index = col_index; row_index = row_index} :: !result
+        | false -> () in
 
-let is_symbol c = List.mem c symbols
+      ()
+    in
 
-let is_digit digit =
-  match digit with
-    | '0' .. '9' -> true
-    | _ -> false;;
+    String.iteri row ~f:handle_ch;
 
-let map_line symbols numbers current_line_index _ =
-  let current_line_numbers = List.nth numbers current_line_index in
+    ()
+  );
 
-  let previous_line_symbols = if current_line_index == 0 then None else List.nth_opt symbols (current_line_index - 1) in
-  let current_line_symbols = List.nth_opt symbols current_line_index in
-  let next_line_symbols = List.nth_opt symbols (current_line_index + 1) in
+  !result;;
 
-  let count_part_numbers (symbols : line_symbol list option) (line_num : line_num) =
-    match symbols with
-    | None -> 
-      print_endline ("No symbols on line");
-      0
-    | Some line_symbols ->
-      let allowed_indexes = line_num.index--line_num.end_index in
+let get_part_numbers file_lines =
+  let part_numbers = ref [] in
 
-      let is_in_symbol_range line_symbol =
-        let symbol_indexes = [line_symbol.index - 1; line_symbol.index; line_symbol.index + 1] in
+  let push_part_number start finish row_index row = 
+    let part_number = {
+      col_index_start = start;
+      col_index_end = finish;
+      row_index = row_index;
+      value = String.slice row start finish |> int_of_string;
+    } in
 
-        List.exists (fun ai -> List.mem ai symbol_indexes) allowed_indexes
+    part_numbers := part_number :: !part_numbers;
+  in
+
+  List.iteri file_lines ~f:(fun row_index row ->
+    let rec aux start finish index chars =
+      match start, finish, chars with
+      | None, None, '0' .. '9' :: rest -> aux (Some index) (Some (index + 1)) (index + 1) rest
+      | None, None, _ :: rest -> aux None None (index + 1) rest
+      | None, None, [] -> ()
+      | None, Some _, _ -> assert false
+      | Some _, None, _ -> assert false
+      | s, Some _, '0' .. '9' :: rest -> aux s (Some (index + 1)) (index + 1) rest 
+      | Some s, Some f, _ :: rest ->
+        push_part_number s f row_index row;
+        aux None None (index + 1) rest;
+      | Some s, Some f, [] ->
+        push_part_number s f row_index row;
+        aux None None (index + 1) [];
+    in
+
+    let chars = String.to_list row in
+
+    aux None None 0 chars;
+  );
+
+  !part_numbers;;
+
+let part1 (symbols : symbol list) part_numbers =
+  let filtered_part_numbers = List.filter part_numbers ~f:(fun part_number ->
+    let adjecent_symbols = List.filter symbols ~f:(fun symbol -> 
+      let allowed_row_indices = [part_number.row_index - 1; part_number.row_index; part_number.row_index + 1] in
+
+      let is_row_adjecent = match List.find allowed_row_indices ~f:(fun ri -> phys_equal ri symbol.row_index) with 
+        | Some _ -> true      
+        | None -> false
       in
+      let is_col_adjecent = part_number.col_index_start - 1 <= symbol.col_index && part_number.col_index_end >= symbol.col_index in
 
-      let found_part_num = line_symbols |> List.filter is_in_symbol_range |> List.length in
+      is_row_adjecent && is_col_adjecent;
+    ) in
 
-      allowed_indexes |> List.iter (fun x -> print_endline ("ALLOWED INDEXES: " ^ string_of_int x));
-      line_symbols |> List.iter (fun x -> print_endline ("LINE INDEXES: " ^ string_of_int x.index));
+    (List.length adjecent_symbols) > 0;
+  ) in
 
-      print_endline ("FOUND: " ^ string_of_int found_part_num);
-
-      if found_part_num == 0 then 0 else line_num.num
+  let res = 
+    let nums = List.map filtered_part_numbers ~f:(fun pn -> pn.value) in
+    
+    List.fold nums ~init:0 ~f:(fun acc n -> acc + n)
   in
+  
+  Fmt.pr "@.@.Part 1: %d" res;;
+  
 
+let part2 =
+  Fmt.pr "@.@.Part 2: %s" "N/A";;
 
-  let safe_count_numbers (line_num : line_num) =
-    print_endline ("----------------------------------------");
-    print_endline ("LINE NUM: " ^ string_of_int line_num.num);
+let () =
+  let file_lines = get_file_lines "./input" in
 
-    let prev_count = count_part_numbers previous_line_symbols line_num in
-    let current_count = count_part_numbers current_line_symbols line_num in
-    let next_count = count_part_numbers next_line_symbols line_num in
+  let symbols = get_symbols file_lines in
+  let part_numbers = get_part_numbers file_lines in
 
-    print_endline ("----------------------------------------");
+  List.iteri file_lines ~f:(fun i l -> Fmt.pr "@.%s -> %d" l i);
 
-    prev_count + current_count + next_count
-  in
-
-  current_line_numbers
-  |> List.map safe_count_numbers 
-  |> List.fold_left (fun acc n -> acc + n) 0;;
-
-let get_line_symbols line =
-  let line_symbols = ref [] in
-
-  let to_symbol index char = 
-    let symbol = {symbol = char; index = index} in
-    line_symbols := symbol :: !line_symbols;
-  in
-
-  line |> String.iteri to_symbol;
-
-  !line_symbols |> List.filter (fun symbol -> is_symbol symbol.symbol);;
-
-let get_line_numbers line =
-  let line_nums = ref [] in
-  let current_number = ref "" in
-
-  let parse i ch =
-    let current_result_length = String.length !current_number in
-    let is_ch_digit = is_digit ch in
-
-    if current_result_length > 0 && (is_ch_digit == false) then
-      let num = {num = int_of_string !current_number; index = (i - current_result_length); end_index = i - 1} in
-
-      line_nums := num :: !line_nums;
-      current_number := "";
-    else
-      match is_ch_digit with
-      | true -> current_number := !current_number ^ (String.make 1 ch)
-      | _ -> ();
-
-        ()
-  in
-
-  let _parsed_result = String.iteri parse line in
-
-  !line_nums;;
-
-let p1 =
-  let lines = read_file in
-  let symbols = List.map get_line_symbols lines in
-  let numbers = List.map get_line_numbers lines in
-
-  print_newline();
-  print_newline();
-
-  let results = List.mapi (map_line symbols numbers) lines in
-  let result = List.fold_left (fun x n -> x + n) 0 results in
-
-  print_newline();
-  print_endline ("RESULT: " ^ string_of_int result);
-
-  result;;
-
-p1;;
+  part1 symbols part_numbers;
+  part2;;
