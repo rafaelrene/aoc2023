@@ -3,24 +3,24 @@ const inputFile = Bun.file("input");
 const input = await inputFile.text();
 const lines = input.split("\n").filter((l) => l.length !== 0);
 
+const cards = lines.map((line) => {
+  const [, allNumbers] = line.split(": ");
+  const [winningNumbersAsString, myNumbersAsString] = allNumbers.split(" | ");
+
+  const winningNumbers = winningNumbersAsString
+    .split(" ")
+    .filter((n) => n.length !== 0)
+    .map(Number);
+
+  const myNumbers = myNumbersAsString
+    .split(" ")
+    .filter((n) => n.length !== 0)
+    .map(Number);
+
+  return { winningNumbers, myNumbers };
+});
+
 const p1 = () => {
-  const cards = lines.map((line) => {
-    const [, allNumbers] = line.split(": ");
-    const [winningNumbersAsString, myNumbersAsString] = allNumbers.split(" | ");
-
-    const winningNumbers = winningNumbersAsString
-      .split(" ")
-      .filter((n) => n.length !== 0)
-      .map(Number);
-
-    const myNumbers = myNumbersAsString
-      .split(" ")
-      .filter((n) => n.length !== 0)
-      .map(Number);
-
-    return { winningNumbers, myNumbers };
-  });
-
   const points = cards.map(({ winningNumbers, myNumbers }) =>
     myNumbers
       .filter((mn) => winningNumbers.includes(mn))
