@@ -1,9 +1,11 @@
+import { Card } from "./types";
+
 const inputFile = Bun.file("input");
 
 const input = await inputFile.text();
 const lines = input.split("\n").filter((l) => l.length !== 0);
 
-const cards = lines.map((line) => {
+const cards: Card[] = lines.map((line) => {
   const [prefixedIdCard, allNumbers] = line.split(": ");
   const [, idCard] = prefixedIdCard.split(" ").filter((s) => s.length !== 0);
   const [winningNumbersAsString, myNumbersAsString] = allNumbers.split(" | ");
@@ -18,7 +20,7 @@ const cards = lines.map((line) => {
     .filter((n) => n.length !== 0)
     .map(Number);
 
-  return { idCard: Number(idCard), winningNumbers, myNumbers };
+  return { idCard: Number(idCard), winningNumbers, myNumbers, amount: 1 };
 });
 
 const p1 = () => {
@@ -30,7 +32,10 @@ const p1 = () => {
 
   const res = points.reduce((acc, n) => acc + n);
 
-  console.log(res);
+  console.log(`-------------------------------------------------`);
+  console.log(`-------------- Part 1: ${res} -------------------`);
+  console.log(`-------------------------------------------------`);
+  console.log();
 };
 
 const p2 = () => {
@@ -38,38 +43,34 @@ const p2 = () => {
 
   let currentIndex = 0;
 
-  // while (currentIndex < p2Cards.length) {
   while (currentIndex < p2Cards.length) {
-    console.log("----------- START --------------");
     const currentCard = p2Cards[currentIndex];
 
-    const winningNumbersLength = currentCard.myNumbers.filter((mn) =>
+    const winningNumbers = currentCard.myNumbers.filter((mn) =>
       currentCard.winningNumbers.includes(mn),
-    ).length;
+    );
 
-    for (let i = currentIndex; i < currentIndex + winningNumbersLength; i++) {
-      const duplicateCard = p2Cards[i + 1];
-      p2Cards.push(duplicateCard);
+    const winningNumbersLength = winningNumbers.length;
+
+    let ammountLoop = 0;
+
+    while (ammountLoop < currentCard.amount) {
+      for (let i = currentIndex; i < currentIndex + winningNumbersLength; i++) {
+        p2Cards[i + 1].amount += 1;
+      }
+
+      ammountLoop++;
     }
 
-    p2Cards.sort((a, b) => {
-      if (a.idCard === b.idCard) {
-        return 0;
-      }
-
-      if (a.idCard < b.idCard) {
-        return -1;
-      }
-
-      return 1;
-    });
-
     currentIndex++;
-    console.log("Length: ", p2Cards.length);
-    console.log("----------- END --------------");
   }
 
-  console.log(p2Cards.length);
+  const res = p2Cards.map((card) => card.amount).reduce((acc, n) => acc + n);
+
+  console.log(`-------------------------------------------------`);
+  console.log(`-------------- Part 2: ${res} -------------------`);
+  console.log(`-------------------------------------------------`);
+  console.log();
 };
 
 p1();
