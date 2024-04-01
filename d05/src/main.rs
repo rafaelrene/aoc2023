@@ -119,6 +119,22 @@ fn parse_lines(lines: &[String]) -> (Vec<isize>, Vec<Vec<Map>>) {
     return (seeds, ordered_filter_maps);
 }
 
+fn prepare_seeds_for_part_two(seeds: Vec<isize>) -> Vec<isize> {
+    return seeds
+        .chunks(2)
+        .flat_map(|chunk| {
+            let start = chunk[0];
+            let length = chunk[1];
+
+            let vec: Vec<isize> = (start..(start + length)).collect();
+
+            println!("START: {:#?} / LENGTH: {:#?}", start, length);
+
+            return vec;
+        })
+        .collect();
+}
+
 fn part_one(lines: &[String]) {
     let (seeds, maps) = parse_lines(lines);
 
@@ -141,8 +157,27 @@ fn part_one(lines: &[String]) {
     println!("------------------ PART ONE (END) ---------------------");
 }
 
-fn part_two(_lines: &[String]) {
-    todo!();
+fn part_two(lines: &[String]) {
+    let (seeds, maps) = parse_lines(lines);
+    let all_seeds = prepare_seeds_for_part_two(seeds);
+
+    let location = all_seeds
+        .iter()
+        .map(|seed| {
+            maps.iter().fold(*seed, |acc, vec_map| {
+                vec_map
+                    .iter()
+                    .find(|&m| m.source.contains(&acc))
+                    .map(|m| m.get_destination(acc))
+                    .unwrap_or(acc)
+            })
+        })
+        .min()
+        .unwrap();
+
+    println!("-------------------- PART TWO -------------------------");
+    println!("Lowest location: {:?}", location);
+    println!("------------------ PART TWO (END) ---------------------");
 }
 
 fn main() {
